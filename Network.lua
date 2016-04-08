@@ -42,11 +42,9 @@ function Network:createSpeechNetwork()
     cnn:add(cudnn.SpatialConvolution(1, 32, 41, 11, 2, 2))
     cnn:add(cudnn.SpatialBatchNormalization(32))
     cnn:add(cudnn.ReLU(true))
-    cnn:add(nn.Dropout(0.4))
     cnn:add(cudnn.SpatialConvolution(32, 32, 21, 11, 2, 1))
     cnn:add(cudnn.SpatialBatchNormalization(32))
     cnn:add(cudnn.ReLU(true))
-    cnn:add(nn.Dropout(0.4))
     cnn:add(cudnn.SpatialMaxPooling(2, 2, 2, 2))
 
     -- batchsize x featuremap x freq x time
@@ -97,6 +95,9 @@ function Network:trainNetwork(dataset, epochs, sgd_params)
         self.model:zeroGradParameters()
         local gradOutput = ctcCriterion:backward(predictions, targets)
         self.model:backward(inputs, gradOutput)
+        collectgarbage()
+        cutorch.synchronize()
+
         return loss, gradParameters
     end
 

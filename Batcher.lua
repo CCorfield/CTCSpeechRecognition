@@ -1,13 +1,6 @@
 require 'nn'
 local Batcher = {}
--- This class should create exactly what is needed by the CTC class.
--- We need the input tensor of each mini-batch to be a padded 3d tensor of batchsize x time x freq.
--- We need the labels to be {{1,3},{3,1}} etc for each sample in the batch.
-
--- The batched CTC activations and the size of tensors are handled by the CTCCriterion.
-
--- tensorsAndTargets is a table such that {{tensor = torch.Tensor(), label = {1,3}},etc}
-function Batcher.createMinibatchDataset(tensorsAndTargets, maximumSizeDifference)
+function Batcher.createMinibatchDataset(tensorsAndTargets, maximumSizeDifference, maxSizeBatch)
 
     local function sortFunction(tensorX, tensorY)
         if (tensorX.tensor:size(1) < tensorY.tensor:size(1)) then return true else return false end
@@ -22,34 +15,50 @@ function Batcher.createMinibatchDataset(tensorsAndTargets, maximumSizeDifference
     local currentTensor = tensorsAndTargets[1]
 
     local function createBatchTensor()
-        local biggestTensor = batch[#batch].tensor:size()
-        local batchTensor = torch.Tensor(#batch, 1, biggestTensor[1], biggestTensor[2]):transpose(3,4) -- We add 1 dimension (1 feature map).
+        local biggestTensor = batch[#batch].tensor:size() -- The end tensor is the biggest tensor in the batch, we pad to this size.
+        local batchTensor = torch.Tensor(#batch, 1, biggestTensor[1], biggestTensor[2]):transpose(3, 4) -- We add 1 dimension (1 feature map).
         local batchTargets = {}
         for index, tensorAndTarget in ipairs(batch) do
             local output = torch.zeros(biggestTensor[1], biggestTensor[2])
             local area = output:narrow(1, 1, tensorAndTarget.tensor:size(1)):copy(tensorAndTarget.tensor)
-            batchTensor[index] = output:view(1, biggestTensor[1], biggestTensor[2]):transpose(2,3) -- We add 1 dimension (1 feature map).
+            batchTensor[index] = output:view(1, biggestTensor[1], biggestTensor[2]):transpose(2, 3) -- We add 1 dimension (1 feature map).
             table.insert(batchTargets, tensorAndTarget.label)
         end
-        return batchTensor, batchTargets
+        if (#batch <= maxSizeBatch) then
+            table.insert(miniBatches, batchTensor)
+            table.insert(miniBatchesTarget, batchTargets)
+        else
+            batchTensor = batchTensor:split(maxSizeBatch)
+            local targetBatches = {}
+            local targetBatch = {}
+            for x = 1, #batchTargets do
+                table.insert(targetBatch, batchTargets[x])
+                if (#targetBatch % maxSizeBatch == 0) then
+                    table.insert(targetBatches, targetBatch)
+                    targetBatch = {}
+                end
+            end
+            if (#targetBatch ~= 0) then table.insert(targetBatches, targetBatch) end
+            batchTargets = targetBatches
+            for x = 1, #batchTensor do
+                table.insert(miniBatches, batchTensor[x])
+                table.insert(miniBatchesTarget, batchTargets[x])
+            end
+        end
     end
 
     while (counter <= #tensorsAndTargets) do
         if (tensorsAndTargets[counter].tensor:size(1) - maximumSizeDifference <= currentTensor.tensor:size(1)) then
             table.insert(batch, tensorsAndTargets[counter])
         else
-            local batchTensor, batchTarget = createBatchTensor()
-            table.insert(miniBatches, batchTensor)
-            table.insert(miniBatchesTarget, batchTarget)
+            createBatchTensor()
             currentTensor = tensorsAndTargets[counter]
             batch = {}
             table.insert(batch, currentTensor)
         end
-
+        -- If we have reached the end and the batch buffer is not empty, we add it as one batch.
         if (counter == #tensorsAndTargets and #batch ~= 0) then
-            local batchTensor, batchTarget = createBatchTensor()
-            table.insert(miniBatches, batchTensor)
-            table.insert(miniBatchesTarget, batchTarget)
+            createBatchTensor()
             currentTensor = tensorsAndTargets[counter]
             batch = {}
             table.insert(batch, currentTensor)
@@ -58,6 +67,7 @@ function Batcher.createMinibatchDataset(tensorsAndTargets, maximumSizeDifference
         counter = counter + 1
     end
     local dataset = createDataSet(miniBatches, miniBatchesTarget)
+
     return dataset
 end
 

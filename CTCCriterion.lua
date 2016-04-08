@@ -20,6 +20,9 @@ end
 function CTCCriterion:updateOutput(output, labels)
     assert(output:nDimension() == CTCCriterion.dim, "Output must be a tensor of (batch x time x inputdim), recieved " .. output:nDimension() .. " dimensions")
     local tensorSizes = output:size()
+    for index, value in ipairs(labels) do
+        if (#value >= output:size(2)) then print("input dim", output:size(), "VALUE : ", #value) end
+    end
     local acts = self:createCTCBatch(output, tensorSizes)
     local sizes = {} -- For each batch we state the number of time steps.
     for x = 1, tensorSizes[1] do
