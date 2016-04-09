@@ -28,7 +28,7 @@ local stride = 75
 
 --The larger this value, the larger the batches, however the more padding is added to make variable sentences the same.
 local maximumSizeDifference = 0 -- Setting this to zero makes it batch together the same length sentences.
-local maxSizeBatch = 10
+local maxSizeBatch = 1000
 --The training set in spectrogram tensor form.
 local an4FolderDir = "/root/CTCSpeechRecognition/Audio/an4"
 local inputsAndTargets = AudioData.retrieveAN4TrainingDataSet(an4FolderDir, windowSize, stride)
