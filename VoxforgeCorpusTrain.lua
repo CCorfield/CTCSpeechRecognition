@@ -1,3 +1,7 @@
+--[[
+-- Uses the Voxforge Speech Corpus (http://www.voxforge.org/home/about) to train the network.
+]]
+
 require 'VoxforgeDataset'
 local Network = require 'Network'
 
