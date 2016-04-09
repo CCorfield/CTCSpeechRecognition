@@ -1,9 +1,8 @@
 -- Tests are modelled around the results obtained in the examples here:
 -- https://github.com/baidu-research/warp-ctc/blob/master/torch_binding/TUTORIAL.md
+-- TODO Use the torch testing platform tester.
 require 'cunn'
-require 'optim'
-require 'rnn'
-require 'CTCCriterion'
+require 'nnx'
 
 local CTCCriterion = nn.CTCCriterion():cuda()
 
