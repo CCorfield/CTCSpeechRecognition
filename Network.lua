@@ -2,16 +2,13 @@
 -- for speech recognition.
 require 'cunn'
 require 'cudnn'
-require 'CTCCriterion'
 require 'optim'
 require 'rnn'
-require 'TorchLSTM'
-require 'ReverseSequence'
+require 'nnx'
 require 'Linear3D'
 require 'TemporalBatchNormalization'
 require 'gnuplot'
 require 'xlua'
-require 'BRNN'
 
 local Network = {}
 local logger = optim.Logger('train.log')
@@ -50,18 +47,19 @@ function Network:createSpeechNetwork()
     -- batchsize x featuremap x freq x time
     cnn:add(nn.SplitTable(1))
     -- features x freq x time
-
     cnn:add(nn.Sequencer(nn.View(1, 32 * 25, -1)))
     -- batch x features x time
     cnn:add(nn.JoinTable(1))
     -- batch x time x features
     cnn:add(nn.Transpose({ 2, 3 }))
 
-    -- b x t x f
     model:add(cnn)
-    model:add(nn.BRNN(nn.TorchLSTM(32 * 25, 400)))
-    model:add(nn.TemporalBatchNormalization(400))
-    model:add(nn.BRNN(nn.TorchLSTM(400, 400)))
+    model:add(nn.TemporalBatchNormalization(32 * 25))
+    -- time x batch x features
+    model:add(nn.Transpose({ 1, 2 }))
+    model:add(cudnn.BLSTM(32 * 25, 200, 3))
+    -- batch x time x features
+    model:add(nn.Transpose({ 1, 2 }))
     model:add(nn.TemporalBatchNormalization(400))
     model:add(nn.Linear3D(400, 28))
     model:cuda()
