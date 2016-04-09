@@ -89,7 +89,7 @@ luarocks install torch
 luarocks install nn
 luarocks install dpnn
 ```
-**If using the voxforge branch do not install cudnn again like below (just install how described at the top of README).
+**If using the voxforge branch do not install cudnn again like below (just install how described at the top of README).**
 For cudnn you need to create an account, follow install instructions [here](https://developer.nvidia.com/cudnn).
 
 Once you have completed the above installation, Install lua bindings for [cudnn](https://github.com/soumith/cudnn.torch):
