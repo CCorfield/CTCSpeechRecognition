@@ -1,8 +1,6 @@
 --[[
+-- TODO -- update this comment once complete.
 -- Retrieves the Voxforge Speech Corpus: http://www.voxforge.org/home/about
--- TODO -- Currently there are no instructions how to compile this for every user (I have an internal conditioned set).
--- TODO -- Create two seperate scripts, one to create the h5 files based on parameters given, and another to load it.
--- TODO -- The first script will download the dataset (os.execute) and handle everything from then on.
 -- ]]
 require 'lfs'
 require 'audio'
@@ -10,13 +8,13 @@ cutorch = require 'cutorch'
 require 'xlua'
 require 'hdf5'
 
-local VoxforgeDataset = torch.class('VoxforgeDataset')
+local VoxforgeConverter = torch.class('VoxforgeConverter')
 
-function VoxforgeDataset:__init(params)
+function VoxforgeConverter:__init(params)
     self.folderDirPath = params.folderDirPath
     self.windowSize = params.windowSize
     self.stride = params.stride
-    self.nbSamples = params.nbSamples
+    self.nbSamples = params.nbSamples or 100000 -- TODO replace this with the total count of samples available.
     self.maxBatchSize = params.maxBatchSize
     self.tempFileLocation = params.tempFileLocation
     self.batchFileLocation = params.batchFileLocation
@@ -35,11 +33,11 @@ for index, character in ipairs(alphabet) do
 end
 
 --Given an index returns the letter at that index.
-function VoxforgeDataset.findLetter(index)
+function VoxforgeConverter.findLetter(index)
     return indexMapping[index]
 end
 
-function VoxforgeDataset:retrieveSpeechCorpusDataset(params)
+function VoxforgeConverter:createSpeechCorpusDataset(params)
     local folderDirPath = params.folderDirPath
     local windowSize = params.windowSize
     local stride = params.stride
@@ -111,18 +109,19 @@ function VoxforgeDataset:retrieveSpeechCorpusDataset(params)
 
                     addDataToHDF5(input, label)
                     if (counter > nbSamples) then
-                        local dataset = createBatchDataset(tensorFile, samplePointer, maxBatchSize, tempFileLocation, batchFileLocation)
-                        return dataset
+                        local datasetLocation = createBatchDataset(tensorFile, samplePointer, maxBatchSize, tempFileLocation, batchFileLocation)
+                        return datasetLocation
                     end
                 end
             end
         end
     end
-
+    print("Creating H5 dataset, this will take time depending on number of samples.")
     for file in lfs.dir(folderDirPath) do
         if lfs.attributes(file, "mode") ~= "directory" then
             local audioLocation = folderDirPath .. file
             local prompts = folderDirPath .. file
+            -- There are various names given for the transcriptions, we handle the different ones here.
             if (self.fileExists(prompts .. "/etc/PROMPTS")) then
                 prompts = prompts .. "/etc/PROMPTS"
             elseif self.fileExists(prompts .. "/etc/cc.prompts") then
@@ -140,12 +139,14 @@ function VoxforgeDataset:retrieveSpeechCorpusDataset(params)
             if (dataset ~= nil) then return dataset end -- Checks if we reached the max return samples and returns set.
         end
     end
-    local dataset = createBatchDataset(tensorFile, samplePointer, maxBatchSize, tempFileLocation, batchFileLocation)
-    return dataset
+    print("Finished converting dataset from audio files.")
+    local datasetLocation = createBatchDataset(tensorFile, samplePointer, maxBatchSize, tempFileLocation, batchFileLocation)
+    return datasetLocation
 end
 
 function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLocation, batchFileLocation)
     -- Now using the above, we have to create a new hdf5 that has the batch tensors.
+    print("Creating batched version of dataset.")
     local function sortFunction(targetX, targetY)
         if (targetX.size[1] < targetY.size[1]) then return true else return false end
     end
@@ -191,51 +192,50 @@ function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLoc
     batchFile:close()
     tensorFile:close()
     os.remove(tempFileLocation)
-
-    local function createDataSet(batchFileLocation)
-        local dataset = {}
-        local pointer = 1
-        function dataset:size()
-            local batchFile = hdf5.open(batchFileLocation, 'r')
-            local size = batchFile:read('/size'):all()[1]
-            batchFile:close()
-            return size
-        end
-
-        function dataset:nextData()
-            collectgarbage()
-            pointer = pointer + 1
-            if (pointer > dataset:size()) then pointer = 1 end
-            local batchFile = hdf5.open(batchFileLocation, 'r')
-            local inputs = batchFile:read('/inputs/' .. pointer):all()
-            local allTargetTensors = batchFile:read('/targets/' .. pointer):all()
-            local targets = {}
-            for x = 1, self.tablelength(allTargetTensors) do
-                local label = torch.totable(allTargetTensors[tostring(x)])
-                table.insert(targets, label)
-            end
-            batchFile:close()
-            return inputs, targets
-        end
-
-        return dataset
-    end
-
-    return createDataSet(batchFileLocation)
+    print("Final dataset created. Stored at: ", batchFileLocation)
+    return batchFileLocation
 end
 
-function VoxforgeDataset.tablelength(T)
+function VoxforgeConverter:createDataSet(batchFileLocation)
+    local dataset = {}
+    local pointer = 1
+    function dataset:size()
+        local batchFile = hdf5.open(batchFileLocation, 'r')
+        local size = batchFile:read('/size'):all()[1]
+        batchFile:close()
+        return size
+    end
+
+    function dataset:nextData()
+        collectgarbage()
+        pointer = pointer + 1
+        if (pointer > dataset:size()) then pointer = 1 end
+        local batchFile = hdf5.open(batchFileLocation, 'r')
+        local inputs = batchFile:read('/inputs/' .. pointer):all()
+        local allTargetTensors = batchFile:read('/targets/' .. pointer):all()
+        local targets = {}
+        for x = 1, self.tablelength(allTargetTensors) do
+            local label = torch.totable(allTargetTensors[tostring(x)])
+            table.insert(targets, label)
+        end
+        batchFile:close()
+        return inputs, targets
+    end
+    return dataset
+end
+
+function VoxforgeConverter.tablelength(T)
     local count = 0
     for _ in pairs(T) do count = count + 1 end
     return count
 end
 
-function VoxforgeDataset.fileExists(name)
+function VoxforgeConverter.fileExists(name)
     local f = io.open(name, "r")
     if f ~= nil then io.close(f) return true else return false end
 end
 
-function VoxforgeDataset.splitByChar(inputstr, sep)
+function VoxforgeConverter.splitByChar(inputstr, sep)
     if sep == nil then
         sep = "%s"
     end

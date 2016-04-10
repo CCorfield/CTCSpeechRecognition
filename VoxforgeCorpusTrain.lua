@@ -23,17 +23,9 @@ local sgdParams = {
     nesterov = true
 }
 
-local datasetParams = {
-    folderDirPath = "/root/Audio/data/", -- Folder containing our dataset
-    windowSize = 256,
-    stride = 75,
-    nbSamples = 80000,
-    maxBatchSize = 60,
-    tempFileLocation = '/home/temp.h5',
-    batchFileLocation = '/home/batchTensors.h5'
-}
-local dataset = VoxforgeDataset(datasetParams)
-local trainingDataSet = dataset:retrieveSpeechCorpusDataset(datasetParams)
+local batchFileLocation = '/home/batchTensors.h5'
+local dataset = VoxforgeDataset()
+local trainingDataSet = dataset:createDataSet(batchFileLocation)
 
 --Create and train the network based on the parameters and training data.
 Network:init(networkParams)
