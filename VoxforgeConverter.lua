@@ -84,7 +84,7 @@ function VoxforgeConverter:createSpeechCorpusDataset(params)
                 elseif (self.fileExists(flacFileLocation)) then
                     audioData = audio.load(flacFileLocation)
                 else
-                    print("Couldn't load audio for file", " audio file: ", audioFile, " File: ", file)
+                    --print("Couldn't load audio for file", " audio file: ", audioFile, " File: ", file)
                 end
                 if (audioData ~= nil) then
                     -- We transpose the frequency/time to now put time on the x axis, frequency on the y axis.
@@ -139,7 +139,7 @@ function VoxforgeConverter:createSpeechCorpusDataset(params)
                 local dataset = standardParsing(audioLocation, prompts, file)
                 if (dataset ~= nil) then return dataset end -- Checks if we reached the max return samples and returns set.
             else
-                print("Could not find prompt for: ", file)
+                --print("Could not find prompt for: ", file)
             end
         end
     end
@@ -187,9 +187,7 @@ function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLoc
         for index, pointer in ipairs(batch) do
             local tensor = tensorFile:read('/inputs/' .. pointer.index):all()
             local label = tensorFile:read('/targets/' .. pointer.index):all()
-            local output = torch.zeros(biggestTensor[1], biggestTensor[2])
-            local area = output:narrow(1, 1, tensor:size(1)):copy(tensor)
-            batchTensor[index] = output:view(1, biggestTensor[1], biggestTensor[2]):transpose(2, 3) -- We add 1 dimension (1 feature map).
+            batchTensor[index] = tensor:transpose(2, 3) -- We add 1 dimension (1 feature map).
             batchFile:write('/targets/' .. counter .. '/' .. index, label) -- We insert the label into batch:counter at location:index.
         end
         batchFile:write('/inputs/' .. counter, batchTensor)
