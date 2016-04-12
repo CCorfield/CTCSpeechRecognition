@@ -23,7 +23,7 @@ local sgdParams = {
     nesterov = true
 }
 
-local batchFileLocation = '/home/batchTensors.h5'
+local batchFileLocation = '/home/voxforgeDataset.h5'
 local dataset = VoxforgeDataset()
 local trainingDataSet = dataset:createDataSet(batchFileLocation)
 
