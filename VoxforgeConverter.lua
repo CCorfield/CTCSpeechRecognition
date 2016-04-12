@@ -5,7 +5,6 @@
 -- ]]
 require 'lfs'
 require 'audio'
-cutorch = require 'cutorch'
 require 'xlua'
 require 'hdf5'
 
