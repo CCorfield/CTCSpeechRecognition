@@ -187,7 +187,7 @@ function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLoc
         for index, pointer in ipairs(batch) do
             local tensor = tensorFile:read('/inputs/' .. pointer.index):all()
             local label = tensorFile:read('/targets/' .. pointer.index):all()
-            batchTensor[index] = tensor:transpose(2, 3) -- We add 1 dimension (1 feature map).
+            batchTensor[index] = tensor:view(1, biggestTensor[1], biggestTensor[2]):transpose(2, 3) -- We add 1 dimension (1 feature map).
             batchFile:write('/targets/' .. counter .. '/' .. index, label) -- We insert the label into batch:counter at location:index.
         end
         batchFile:write('/inputs/' .. counter, batchTensor)
