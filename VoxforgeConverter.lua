@@ -1,6 +1,7 @@
 --[[
--- TODO -- update this comment once complete.
--- Retrieves the Voxforge Speech Corpus: http://www.voxforge.org/home/about
+-- Run AFTER downloading the Voxforge Speech Corpus via the DownloadVoxforgeCorpus.sh bash script.
+-- Will convert the folder into a HDF5 file containing the necessary information for training the network.
+-- The class is used in the VoxforgeCreateHDF5.lua class.
 -- ]]
 require 'lfs'
 require 'audio'
@@ -70,10 +71,8 @@ function VoxforgeConverter:createSpeechCorpusDataset(params)
                 -- We add the audio data to the inputs.
                 local identifiers = self.splitByChar(words[1], "/")
                 local audioFile
-                local indentifierIndex
                 if (identifiers[#identifiers] ~= nil) then
                     audioFile = identifiers[#identifiers]
-                    indentifierIndex = #identifiers
                 end
                 if (audioFile == nil) then
                     print("audio file was nil", file)
@@ -94,19 +93,18 @@ function VoxforgeConverter:createSpeechCorpusDataset(params)
 
                     -- We add the labels to the targets.
                     local line = ""
-                    for x = indentifierIndex + 1, #words do
+                    -- The first word is the audioFileLocation
+                    for x = 2, #words do
                         words[x] = words[x]:gsub('%W', '')
                         line = line .. " " .. words[x]
                     end
                     line = string.lower(line) -- lowecase the string
-
                     --The first word is the fileName to the audio file.
                     local line = line:gsub('%b()', '')
                     for i = 1, #line do
                         local character = line:sub(i, i)
                         table.insert(label, alphabetMapping[character])
                     end
-
                     addDataToHDF5(input, label)
                     if (counter > nbSamples) then
                         local datasetLocation = createBatchDataset(tensorFile, samplePointer, maxBatchSize, tempFileLocation, batchFileLocation)
@@ -116,6 +114,7 @@ function VoxforgeConverter:createSpeechCorpusDataset(params)
             end
         end
     end
+
     print("Creating H5 dataset, this will take time depending on number of samples.")
     for file in lfs.dir(folderDirPath) do
         if lfs.attributes(file, "mode") ~= "directory" then
@@ -132,11 +131,17 @@ function VoxforgeConverter:createSpeechCorpusDataset(params)
                 prompts = prompts .. "/etc/Transcriptions.txt"
             elseif self.fileExists(prompts .. "/etc/prompt.txt") then
                 prompts = prompts .. "/etc/prompt.txt"
-            else
+            elseif self.fileExists(prompts .. "/etc/prompts.txt") then
                 prompts = prompts .. "/etc/prompts.txt"
+            else
+                prompts = nil -- Could not find the prompt.
             end
-            local dataset = standardParsing(audioLocation, prompts, file)
-            if (dataset ~= nil) then return dataset end -- Checks if we reached the max return samples and returns set.
+            if (prompts ~= nil) then
+                local dataset = standardParsing(audioLocation, prompts, file)
+                if (dataset ~= nil) then return dataset end -- Checks if we reached the max return samples and returns set.
+            else
+                print("Could not find prompt for: ", file)
+            end
         end
     end
     print("Finished converting dataset from audio files.")
@@ -169,6 +174,7 @@ function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLoc
         if (counter == #samplePointer and #batchBuffer ~= 0) then
             table.insert(batches, batchBuffer)
         end
+        xlua.progress(counter, #samplePointer)
         counter = counter + 1
     end
 
@@ -176,6 +182,7 @@ function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLoc
     local counter = 0
     for index, batch in ipairs(batches) do
         counter = counter + 1
+        xlua.progress(counter, #batches)
         local biggestTensor = batch[1].size
         local batchTensor = torch.Tensor(#batch, 1, biggestTensor[1], biggestTensor[2]):transpose(3, 4) -- We add 1 dimension (1 feature map).
         for index, pointer in ipairs(batch) do
@@ -194,40 +201,6 @@ function createBatchDataset(tensorFile, samplePointer, maxSizeBatch, tempFileLoc
     os.remove(tempFileLocation)
     print("Final dataset created. Stored at: ", batchFileLocation)
     return batchFileLocation
-end
-
-function VoxforgeConverter:createDataSet(batchFileLocation)
-    local dataset = {}
-    local pointer = 1
-    function dataset:size()
-        local batchFile = hdf5.open(batchFileLocation, 'r')
-        local size = batchFile:read('/size'):all()[1]
-        batchFile:close()
-        return size
-    end
-
-    function dataset:nextData()
-        collectgarbage()
-        pointer = pointer + 1
-        if (pointer > dataset:size()) then pointer = 1 end
-        local batchFile = hdf5.open(batchFileLocation, 'r')
-        local inputs = batchFile:read('/inputs/' .. pointer):all()
-        local allTargetTensors = batchFile:read('/targets/' .. pointer):all()
-        local targets = {}
-        for x = 1, self.tablelength(allTargetTensors) do
-            local label = torch.totable(allTargetTensors[tostring(x)])
-            table.insert(targets, label)
-        end
-        batchFile:close()
-        return inputs, targets
-    end
-    return dataset
-end
-
-function VoxforgeConverter.tablelength(T)
-    local count = 0
-    for _ in pairs(T) do count = count + 1 end
-    return count
 end
 
 function VoxforgeConverter.fileExists(name)
