@@ -17,7 +17,7 @@ local datasetParams = {
     windowSize = 256, -- Used for conversion of audio data. Must be the same in evaluation.
     stride = 75, -- Used for conversion of audio data. Must be the same in evaluation.
     nbSamples = 80000, -- Maximum number of samples to save into our dataset. To save entire dataset, remove.
-    maxBatchSize = 30, -- The max size of one batch of data.
+    maxBatchSize = 40, -- The max size of one batch of data.
     tempFileLocation = tempFileLocation,
     batchFileLocation = datasetFileLocation
 }
