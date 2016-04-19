@@ -6,7 +6,7 @@ require 'VoxforgeDataset'
 local Network = require 'Network'
 
 --Training parameters
-local epochs = 5
+local epochs = 30
 
 local networkParams = {
     loadModel = false,
