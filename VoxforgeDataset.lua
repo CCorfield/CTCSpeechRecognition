@@ -7,9 +7,9 @@ function VoxforgeDataset:createDataSet(batchFileLocation)
     local dataset = {}
     local pointer = 1
     local batchFile = hdf5.open(batchFileLocation, 'r')
+    local size = batchFile:read('/size'):all()[1]
 
     function dataset:size()
-        local size = batchFile:read('/size'):all()[1]
         return size
     end
     local dataSetSize = dataset:size()
