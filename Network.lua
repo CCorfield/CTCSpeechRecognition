@@ -42,7 +42,7 @@ function Network:createSpeechNetwork()
     cnn:add(cudnn.SpatialConvolution(32, 32, 21, 11, 2, 1))
     cnn:add(cudnn.SpatialBatchNormalization(32))
     cnn:add(cudnn.ReLU(true))
-    cnn:add(cudnn.SpatialMaxPooling(2, 2, 2, 2))
+    cnn:add(cudnn.SpatialMaxPooling(2, 1, 2, 1))
 
     -- batchsize x featuremap x freq x time
     cnn:add(nn.SplitTable(1))
@@ -55,11 +55,7 @@ function Network:createSpeechNetwork()
 
     model:add(cnn)
     model:add(nn.TemporalBatchNormalization(32 * 25))
-    -- time x batch x features
-    model:add(nn.Transpose({ 1, 2 }))
-    model:add(cudnn.BLSTM(32 * 25, 200, 3))
-    -- batch x time x features
-    model:add(nn.Transpose({ 1, 2 }))
+    model:add(cudnn.BLSTM(32 * 25, 200, 3, true))
     model:add(nn.TemporalBatchNormalization(400))
     model:add(nn.Linear3D(400, 28))
     model:cuda()
@@ -95,7 +91,7 @@ function Network:trainNetwork(dataset, epochs, sgd_params)
         self.model:backward(inputs, gradOutput)
         collectgarbage()
         cutorch.synchronize()
-
+        if(loss == 0) then print("inputSize",inputs:size(), "Targets",targets, "prediction size",predictions) end
         return loss, gradParameters
     end
 
