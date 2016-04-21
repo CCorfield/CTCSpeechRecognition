@@ -8,6 +8,7 @@ require 'nnx'
 require 'Linear3D'
 require 'TemporalBatchNormalization'
 require 'gnuplot'
+require 'CombineDimensions'
 require 'xlua'
 
 local Network = {}
@@ -35,25 +36,17 @@ function Network:createSpeechNetwork()
 
     local model = nn.Sequential()
 
-    local cnn = nn.Sequential()
-    cnn:add(cudnn.SpatialConvolution(1, 32, 41, 11, 2, 2))
-    cnn:add(cudnn.SpatialBatchNormalization(32))
-    cnn:add(cudnn.ReLU(true))
-    cnn:add(cudnn.SpatialConvolution(32, 32, 21, 11, 2, 1))
-    cnn:add(cudnn.SpatialBatchNormalization(32))
-    cnn:add(cudnn.ReLU(true))
-    cnn:add(cudnn.SpatialMaxPooling(2, 1, 2, 1))
+    model:add(cudnn.SpatialConvolution(1, 32, 41, 11, 2, 2))
+    model:add(cudnn.SpatialBatchNormalization(32))
+    model:add(cudnn.ReLU(true))
+    model:add(cudnn.SpatialConvolution(32, 32, 21, 11, 2, 1))
+    model:add(cudnn.SpatialBatchNormalization(32))
+    model:add(cudnn.ReLU(true))
+    model:add(cudnn.SpatialMaxPooling(2, 2, 2, 2))
 
-    -- batchsize x featuremap x freq x time
-    cnn:add(nn.SplitTable(1))
-    -- features x freq x time
-    cnn:add(nn.Sequencer(nn.View(1, 32 * 25, -1)))
-    -- batch x features x time
-    cnn:add(nn.JoinTable(1))
-    -- batch x time x features
-    cnn:add(nn.Transpose({ 2, 3 }))
+    model:add(nn.CombineDimensions(2, 3))
+    model:add(nn.Transpose({1,2},{2,3}))
 
-    model:add(cnn)
     model:add(nn.TemporalBatchNormalization(32 * 25))
     model:add(cudnn.BLSTM(32 * 25, 200, 3, true))
     model:add(nn.TemporalBatchNormalization(400))
