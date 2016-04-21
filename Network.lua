@@ -44,8 +44,8 @@ function Network:createSpeechNetwork()
     model:add(cudnn.ReLU(true))
     model:add(cudnn.SpatialMaxPooling(2, 2, 2, 2))
 
-    model:add(nn.CombineDimensions(2, 3))
-    model:add(nn.Transpose({1,2},{2,3}))
+    model:add(nn.CombineDimensions(2, 3)) -- Combine the middle two dimensions from 4D to 3D (features x batch x seqLength)
+    model:add(nn.Transpose({1,2},{2,3})) -- Transpose till batch x seqLength x features
 
     model:add(nn.TemporalBatchNormalization(32 * 25))
     model:add(cudnn.BLSTM(32 * 25, 200, 3, true))
