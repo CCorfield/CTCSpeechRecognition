@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 --[[ CombineDimension ]] --
-
+-- Combines an input 4D tensor on the given two dimensions.
+-- Returns a tensor where the combined dimension is the first dimension.
 ------------------------------------------------------------------------
 require 'nn'
 require 'rnn'
@@ -14,7 +15,9 @@ function CombineDimensions:__init(dim1, dim2)
     self.gradInput = torch.Tensor()
     self.dim1 = dim1
     self.dim2 = dim2
+    assert(self.dim1 and self.dim2, "You must specify two dimensions to combine in CombineDimensions")
 end
+
 function CombineDimensions:makeContiguous(input)
     if not input:isContiguous() then
         self._input = self._input or input.new()
@@ -23,14 +26,15 @@ function CombineDimensions:makeContiguous(input)
     end
     return input
 end
+
 function CombineDimensions:updateOutput(input)
+    assert(input:dim() == 4, "CombineDimensions expects a 4D tensor")
     input = input:transpose(self.dim1, 1)
     input = input:transpose(self.dim2, 2)
     input = self:makeContiguous(input)
-    self.output = input:view(input:size(1) * input:size(2),input:size(3),input:size(4))
+    self.output = input:view(input:size(1) * input:size(2), input:size(3), input:size(4))
     return self.output
 end
-
 
 function CombineDimensions:updateGradInput(input, gradOutput)
     self.gradInput = gradOutput:view(input:size())
