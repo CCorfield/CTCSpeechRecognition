@@ -3,10 +3,6 @@
 -- Combines an input 4D tensor on the given two dimensions.
 -- Returns a tensor where the combined dimension is the first dimension.
 ------------------------------------------------------------------------
-require 'nn'
-require 'rnn'
-require 'Linear3D'
-
 local CombineDimensions, parent = torch.class("nn.CombineDimensions", "nn.Module")
 
 function CombineDimensions:__init(dim1, dim2)
