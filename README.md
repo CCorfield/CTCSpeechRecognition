@@ -1,20 +1,14 @@
 # CTCSpeechRecognition -- Voxforge Branch
 
-WARNING, this branch is very experimental and uses cudnn v5.
-
-First you must have cudnn v5 which can be downloaded and installed [here](https://developer.nvidia.com/cudnn).
-
-You must install the R5 bindings for cudnn from [here](https://github.com/soumith/cudnn.torch/tree/R5):
+WARNING, this branch is very experimental and is far from complete, however is moving towards a proper neural model.
 
 Work in progress. Implementation of the [Baidu Warp-CTC](https://github.com/baidu-research/warp-ctc) using torch7. Feeds spectrogram data into a neural network using the Torch7 library, training itself with the CTC activation function.
-
-Current implementation runs on CUDA 7.5, but can be using anything above 7.0.
 
 ## Installation
 
 To install torch7 follow the guide [here](http://torch.ch/docs/getting-started.html).
 
-You must have CUDA 7.0 or above (build supported by warp-ctc). To install CUDA 7.5:
+You must have CUDA 7.5 or above (build supported by warp-ctc). To install CUDA 7.5:
 
 Download the .run file of your platform [here](https://developer.nvidia.com/cuda-downloads).
 
