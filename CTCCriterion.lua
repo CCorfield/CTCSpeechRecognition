@@ -62,26 +62,3 @@ function sumCosts(list)
     end
     return acc
 end
-
---[[
--- Converts the outputs into batch warp-ctc format seen at the end of the README here:
--- https://github.com/baidu-research/warp-ctc/blob/master/torch_binding/TUTORIAL.md
- ]]
-function CTCCriterion:createCTCBatch(output, sizes)
-    self.acts:resize(sizes[1] * sizes[2], sizes[3]):zero()
-    local output = output:transpose(1, 2)
-    self.acts = torch.reshape(output, sizes[1] * sizes[2], sizes[3])
-    return self.acts
-end
-
-function CTCCriterion:revertBatching(gradients, sizes)
-    self.convertedGradients:resize(sizes[1], sizes[2], sizes[3]):zero()
-    local counter = 1
-    for i = 1, sizes[2] do
-        for j = 1, sizes[1] do
-            self.convertedGradients[j][i] = gradients[counter]
-            counter = counter + 1
-        end
-    end
-    return self.convertedGradients
-end
