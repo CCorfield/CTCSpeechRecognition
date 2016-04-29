@@ -5,33 +5,32 @@ require 'rnn'
 local function deepSpeech(GRU)
 
     local model = nn.Sequential()
-
     model:add(cudnn.SpatialConvolution(1, 32, 41, 11, 2, 2))
-    model:add(cudnn.SpatialBatchNormalization(32)) -- Running mean for next conv layers.
+    model:add(cudnn.SpatialBatchNormalization(32))
     model:add(cudnn.ReLU(true))
     model:add(cudnn.SpatialConvolution(32, 32, 21, 11, 2, 1))
-    model:add(cudnn.SpatialBatchNormalization(32)) -- Running mean for the next layers.
+    model:add(cudnn.SpatialBatchNormalization(32))
     model:add(cudnn.ReLU(true))
     model:add(cudnn.SpatialMaxPooling(2, 2, 2, 2))
 
-    model:add(nn.SplitTable(1)) -- batchsize x featuremap x freq x seqLength
-    model:add(nn.Sequencer(nn.View(1, 32 * 25, -1))) -- features x freq x seqLength
-    model:add(nn.JoinTable(1)) -- batch x features x seqLength
-
-    model:add(nn.Transpose({ 1, 3 }, { 2, 3 })) -- seqLength x batch x features
+    model:add(nn.SplitTable(1)) -- batchsize x featuremap x freq x time
+    model:add(nn.Sequencer(nn.View(1, 32 * 25, -1))) -- features x freq x time
+    model:add(nn.JoinTable(1)) -- batch x features x time
+    model:add(nn.Transpose({ 2, 3 }, { 1, 2 })) -- batch x time x features
 
     if (GRU) then
-        model:add(cudnn.BGRU(32 * 25, 200, 4))
+        model:add(cudnn.BGRU(32 * 25, 400, 4))
     else
-        model:add(cudnn.BLSTM(32 * 25, 500, 4))
+        model:add(cudnn.BLSTM(32 * 25, 400, 4))
     end
 
-    model:add(nn.Transpose({ 1, 2 })) -- batch x seqLength x features * 2
-    --model:add(nn.MergeConcat(400, 3)) -- batch x seqLength x features
+    model:add(nn.Transpose({ 1, 2 })) -- batch x seqLength x features
+    model:add(nn.MergeConcat(400, 3)) -- Sums the outputDims of the two outputs layers from BRNN into one.
+
     model:add(nn.Transpose({1, 2})) -- seqLength x batch x features
-    model:add(nn.View(-1, 1000)) -- seqLength*batch x features
-    model:add(nn.BatchNormalization(1000))
-    model:add(nn.Linear(1000, 28))
+    model:add(nn.View(-1, 400)) -- seqLength*batch x features
+
+    model:add(nn.Linear(400, 28))
     return model
 end
 
