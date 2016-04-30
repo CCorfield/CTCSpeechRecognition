@@ -13,23 +13,16 @@ local function deepSpeech(GRU)
     model:add(cudnn.ReLU(true))
     model:add(cudnn.SpatialMaxPooling(2, 2, 2, 2))
 
-    model:add(nn.SplitTable(1)) -- batchsize x featuremap x freq x time
-    model:add(nn.Sequencer(nn.View(1, 32 * 25, -1))) -- features x freq x time
-    model:add(nn.JoinTable(1)) -- batch x features x time
-    model:add(nn.Transpose({ 2, 3 }, { 1, 2 })) -- batch x time x features
-
+    model:add(nn.View(32 * 25, -1):setNumInputDims(3)) -- batch x features x seqLength
+    model:add(nn.Transpose({ 2, 3 }, { 1, 2 })) -- seqLength x batch x features
     if (GRU) then
         model:add(cudnn.BGRU(32 * 25, 400, 4))
     else
         model:add(cudnn.BLSTM(32 * 25, 400, 4))
     end
 
-    model:add(nn.Transpose({ 1, 2 })) -- batch x seqLength x features
     model:add(nn.MergeConcat(400, 3)) -- Sums the outputDims of the two outputs layers from BRNN into one.
-
-    model:add(nn.Transpose({1, 2})) -- seqLength x batch x features
-    model:add(nn.View(-1, 400)) -- seqLength*batch x features
-
+    model:add(nn.View(-1, 400)) -- seqLength*batch x features (collapses into CTC format).
     model:add(nn.Linear(400, 28))
     return model
 end
